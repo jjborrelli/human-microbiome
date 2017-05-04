@@ -1,6 +1,7 @@
 devtools::install_github("joey711/biomformat")
 library(biomformat)
 library(data.table)
+library(gambin)
 
 system.time(test <- read_hdf5_biom("~/Downloads/ag_fecal.biom"))
 names(test)
@@ -24,6 +25,62 @@ fzag1 <- lapply(gav[sapply(gav, length) >= 200], function(x) fzmod(x[1:200]))
 fzag1 <- do.call(rbind, fzag1)
 
 
+############################################################################################################
+############################################################################################################
+############################################################################################################
+system.time(
+ag <- read_hdf5_biom("~/Documents/AmericanGut/ag_10k_fecal.biom")
+)
+
+ag.tax <- t(sapply(ag$rows, function(x) x$metadata$taxonomy))
+ag <- as.data.table(do.call(rbind, ag$data))
+
+ag.meta <- fread("~/Documents/AmericanGut/ag_10k_fecal.txt", header = T)
+colnames(ag.meta)[1] <- "SampleID"
+which(ag.meta$SampleID %in% colnames(ag)[1])
+
+ag.meta <- (ag.meta[match(colnames(ag), ag.meta$SampleID),])
+
+fzag <- apply(ag, 2, function(x) fzmod(rev(sort(x[x>0]))))
+fzag <- rbindlist(fzag)
+
+gbag <- apply(ag, 2, function(x) fitGambin(rev(sort(x[x>0]))))
+
+#
+
+
+table(ag.meta$PD_whole_tree_10k)
+boxplot(fzag$s~toupper(ag.meta$SUBSET_BMI))
+# quick comparisons
+t.test(fzag$s~toupper(ag.meta$SUBSET_HEALTHY))
+t.test(fzag$N~toupper(ag.meta$SUBSET_HEALTHY))
+cvec <- vector(length = length(toupper(ag.meta$SUBSET_HEALTHY)))
+cvec <- ifelse(toupper(ag.meta$SUBSET_HEALTHY), "blue", "green4")
+plot(fzag$s,as.logical(toupper(ag.meta$SUBSET_HEALTHY)), pch = 20)
+
+
+colnames(ag.meta)[(grep("VIOSCREEN", colnames(ag.meta)))]
+df1 <- data.frame(fiber = ag.meta$VIOSCREEN_FIBER, mv = ag.meta$VIOSCREEN_MULTIVITAMIN, yog = ag.meta$VIOSCREEN_D_YOGURT, fat = ag.meta$VIOSCREEN_FAT, prot = ag.meta$VIOSCREEN_PROTEIN, glu = ag.meta$VIOSCREEN_GLUCOSE, fruc = ag.meta$VIOSCREEN_FRUCTOSE)
+df2 <- apply(df1, 2, function(x){x[x == "Unknown" | x == "Unspecified"] <- NA;return(as.numeric(x))})
+
+vio <- ag.meta[,(grep("VIOSCREEN", colnames(ag.meta))), with = F]
+vio <- apply(vio, 2, function(x){x[x == "Unknown" | x == "Unspecified"] <- NA;return((x))})
+
+summary(lm(s~fiber+yog+fat+prot+glu+fruc, data = data.frame(s = fzag$N[!apply(df2, 1, function(x) all(is.na(x)))], df2[!apply(df2, 1, function(x) all(is.na(x))),])))
+ag.meta$VIOSCREEN_
+
+
+
+
+
+
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+############################################################################################################
+############################################################################################################
+############################################################################################################
 
 otu2 <- read.csv("~/Desktop/otu_table_psn_v13.csv", row.names = 1)
 metadat <- read.csv("~/Desktop/v13_map_uniquebyPSN.csv")
