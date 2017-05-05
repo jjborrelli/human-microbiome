@@ -61,10 +61,11 @@ plot(fzag$s,as.logical(toupper(ag.meta$SUBSET_HEALTHY)), pch = 20)
 
 colnames(ag.meta)[(grep("VIOSCREEN", colnames(ag.meta)))]
 df1 <- data.frame(fiber = ag.meta$VIOSCREEN_FIBER, mv = ag.meta$VIOSCREEN_MULTIVITAMIN, yog = ag.meta$VIOSCREEN_D_YOGURT, fat = ag.meta$VIOSCREEN_FAT, prot = ag.meta$VIOSCREEN_PROTEIN, glu = ag.meta$VIOSCREEN_GLUCOSE, fruc = ag.meta$VIOSCREEN_FRUCTOSE)
-df2 <- apply(df1, 2, function(x){x[x == "Unknown" | x == "Unspecified"] <- NA;return(as.numeric(x))})
+df2 <- apply(df1, 2, function(x){x[x == "Unknown" | x == "Unspecified" | x == "no_data"] <- NA;return(as.numeric(x))})
 
 vio <- ag.meta[,(grep("VIOSCREEN", colnames(ag.meta))), with = F]
-vio <- apply(vio, 2, function(x){x[x == "Unknown" | x == "Unspecified"] <- NA;return((x))})
+vio <- apply(vio, 2, function(x){x[x == "Unknown" | x == "Unspecified"| x == "no_data"] <- NA;return((x))})
+vio <- as.data.frame(vio[!apply(vio, 1, function(x) all(is.na(x))),])
 
 summary(lm(s~fiber+yog+fat+prot+glu+fruc, data = data.frame(s = fzag$N[!apply(df2, 1, function(x) all(is.na(x)))], df2[!apply(df2, 1, function(x) all(is.na(x))),])))
 ag.meta$VIOSCREEN_
