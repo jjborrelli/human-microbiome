@@ -3,7 +3,7 @@ library(biomformat)
 library(data.table)
 library(gambin)
 
-system.time(test <- read_hdf5_biom("~/Downloads/ag_fecal.biom"))
+system.time(ag <- read_hdf5_biom("~/Downloads/ag_fecal.biom"))
 names(test)
 length(test$data[[2]])
 
@@ -14,9 +14,9 @@ test <- do.call(rbind, test$data)
 dim(test)
 
 nsp <- (apply(test, 2, function(x) sum(x != 0)))
-nrds <- apply(test, 2, sum)
+nrds <- apply(ag, 2, sum) >= 2000
 
-gav <- apply(test[,nrds >= 2000], 2, function(x){rev(sort(get_abundvec(x[x!=0], N = 2000)))})
+gav <- apply(ag[,nrds, with = FALSE], 2, function(x){rev(sort(get_abundvec(x[x!=0], N = 2000)))})
 fzag <- lapply(gav, fzmod)
 fzag <- do.call(rbind, fzag)
 plot(fzag$s~fzag$N, ylim = c(0,3.5), xlim = c(0, 600))
@@ -41,8 +41,15 @@ which(ag.meta$SampleID %in% colnames(ag)[1])
 
 ag.meta <- (ag.meta[match(colnames(ag), ag.meta$SampleID),])
 
-fzag <- apply(ag, 2, function(x) fzmod(rev(sort(x[x>0]))))
+fzag <- apply(ag, 2, function(x){
+  ga <- get_abundvec(rev(sort(x[x>0])), 2000)
+  if(length(ga > 25)){smod <-fzmod(ga)}else{smod <- data.frame(N = NA, s = NA, nll = NA, r2 = NA)}
+  return(smod)
+}) 
+
 fzag <- rbindlist(fzag)
+plot(fzag[,1:2])
+
 
 gbag <- apply(ag, 2, function(x) fitGambin(rev(sort(x[x>0]))))
 
@@ -50,7 +57,7 @@ gbag <- apply(ag, 2, function(x) fitGambin(rev(sort(x[x>0]))))
 
 
 table(ag.meta$PD_whole_tree_10k)
-boxplot(fzag$s~toupper(ag.meta$SUBSET_BMI))
+boxplot(fzag$s~toupper(agm$COUNTRY), las = 2)
 # quick comparisons
 t.test(fzag$s~toupper(ag.meta$SUBSET_HEALTHY))
 t.test(fzag$N~toupper(ag.meta$SUBSET_HEALTHY))
@@ -63,13 +70,12 @@ colnames(ag.meta)[(grep("VIOSCREEN", colnames(ag.meta)))]
 df1 <- data.frame(fiber = ag.meta$VIOSCREEN_FIBER, mv = ag.meta$VIOSCREEN_MULTIVITAMIN, yog = ag.meta$VIOSCREEN_D_YOGURT, fat = ag.meta$VIOSCREEN_FAT, prot = ag.meta$VIOSCREEN_PROTEIN, glu = ag.meta$VIOSCREEN_GLUCOSE, fruc = ag.meta$VIOSCREEN_FRUCTOSE)
 df2 <- apply(df1, 2, function(x){x[x == "Unknown" | x == "Unspecified" | x == "no_data"] <- NA;return(as.numeric(x))})
 
-vio <- ag.meta[,(grep("VIOSCREEN", colnames(ag.meta))), with = F]
+vio <- ag.meta[,(grep("VIOSCREEN", colnames(agm)))]
 vio <- apply(vio, 2, function(x){x[x == "Unknown" | x == "Unspecified"| x == "no_data"] <- NA;return((x))})
 vio <- as.data.frame(vio[!apply(vio, 1, function(x) all(is.na(x))),])
 
 summary(lm(s~fiber+yog+fat+prot+glu+fruc, data = data.frame(s = fzag$N[!apply(df2, 1, function(x) all(is.na(x)))], df2[!apply(df2, 1, function(x) all(is.na(x))),])))
 ag.meta$VIOSCREEN_
-
 
 
 
@@ -96,7 +102,7 @@ gav1 <- apply(otu3[apply(otu3, 2, sum) >= 2000], 2, function(x) rev(sort(get_abu
 gavfz1 <- lapply(gav1, fzmod)
 gavfz1 <- do.call(rbind, gavfz1)
 
-plot(fzag$s~fzag$N, ylim = c(0,3.5), xlim = c(0, 1000), pch = 20)
+plot(fzag$s~fzag$N, ylim = c(.5,4), xlim = c(0, 600), pch = 20)
 points(gavfz1$s~gavfz1$N, col = "blue", pch = 20)
 points(simfz6$s~simfz6$N, col = "green4", pch = 20)
 points(simfz1$s~simfz1$N, col = "green3", pch  = 20)
