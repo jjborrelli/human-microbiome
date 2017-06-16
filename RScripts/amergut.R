@@ -19,11 +19,13 @@ nrds <- apply(ag, 2, sum) >= 2000
 gav <- apply(ag[,nrds, with = FALSE], 2, function(x){rev(sort(get_abundvec(x[x!=0], N = 2000)))})
 fzag <- lapply(gav, fzmod)
 fzag <- do.call(rbind, fzag)
-plot(fzag$s~fzag$N, ylim = c(0,3.5), xlim = c(0, 600))
+plot(log10(fzag$s)~log10(fzag$N))#, ylim = c(0,3.5), xlim = c(0, 600))
 
 fzag1 <- lapply(gav[sapply(gav, length) >= 200], function(x) fzmod(x[1:200]))
 fzag1 <- do.call(rbind, fzag1)
 
+fs <- lapply(gav, function(x) fitsad(x, sad = "poilog")@fullcoef)
+N <- sapply(gav, length)
 
 ############################################################################################################
 ############################################################################################################
@@ -34,7 +36,8 @@ ag <- read_hdf5_biom("~/Documents/AmericanGut/ag_10k_fecal.biom")
 
 ag.tax <- t(sapply(ag$rows, function(x) x$metadata$taxonomy))
 ag <- as.data.table(do.call(rbind, ag$data))
-
+ma.ag2 <- apply(ag, 2, function(x) max(x))
+hist(ma.ag)
 ag.meta <- fread("~/Documents/AmericanGut/ag_10k_fecal.txt", header = T)
 colnames(ag.meta)[1] <- "SampleID"
 which(ag.meta$SampleID %in% colnames(ag)[1])
@@ -98,9 +101,12 @@ otu3 <- otu2[-which(rowSums(otu2[,spptab]) == 0),spptab]
 rm(otu2)
 rm(metadat)
 
-gav1 <- apply(otu3[apply(otu3, 2, sum) >= 2000], 2, function(x) rev(sort(get_abundvec(x, N = 2000))))
-gavfz1 <- lapply(gav1, fzmod)
+gav <- apply(otu3[apply(otu3, 2, sum) >= 2000], 2, function(x) rev(sort(get_abundvec(x, N = 2000))))
+gavfz1 <- lapply(gav, fzmod)
 gavfz1 <- do.call(rbind, gavfz1)
+
+gavfz2 <- do.call(rbind, lapply(1:ncol(otu3), function(x) fzmod(rev(sort(otu3[,x][otu3[,x]>0])))))
+N1 <- apply(otu3, 2, function(x) sum(x > 0))
 
 plot(fzag$s~fzag$N, ylim = c(.5,4), xlim = c(0, 600), pch = 20)
 points(gavfz1$s~gavfz1$N, col = "blue", pch = 20)
